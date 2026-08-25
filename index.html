@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Maitê - 1 aninho</title>
+<style>
+  :root{
+    --bg1:#ffe3d1;
+    --bg2:#bfe8e0;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{
+    margin:0; padding:0; width:100%; height:100%;
+    overflow:hidden;
+    background: linear-gradient(160deg, var(--bg1) 0%, var(--bg2) 100%);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  #app{ position:fixed; inset:0; }
+
+  .screen{
+    position:fixed; inset:0;
+    display:flex; align-items:center; justify-content:center;
+    background: linear-gradient(160deg, var(--bg1) 0%, var(--bg2) 100%);
+    opacity:0;
+    pointer-events:none;
+    transition: opacity 900ms ease;
+    will-change: opacity;
+  }
+  .screen.active{
+    opacity:1;
+    pointer-events:auto;
+  }
+  .screen.on-top{ z-index:5; }
+  .screen.below{ z-index:1; }
+
+  .frame{
+    position:relative;
+    margin:auto;
+  }
+  .frame img, .frame video{
+    width:100%; height:100%;
+    display:block;
+    object-fit:contain;
+    -webkit-user-select:none; user-select:none;
+    pointer-events:none;
+  }
+
+  .hotspot{
+    position:absolute;
+    cursor:pointer;
+    /* debug: uncomment to visualize
+    background: rgba(255,0,0,.25); border:1px solid red; */
+  }
+
+  #screen-primeira{ cursor:pointer; }
+
+  #sound-toggle{
+    position:fixed;
+    right: max(14px, env(safe-area-inset-right));
+    bottom: max(14px, env(safe-area-inset-bottom));
+    z-index: 50;
+    width:52px; height:52px;
+    border-radius:50%;
+    border:none;
+    background: rgba(255,255,255,0.85);
+    box-shadow: 0 4px 14px rgba(0,0,0,0.18);
+    display:flex; align-items:center; justify-content:center;
+    font-size:22px;
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
+  }
+  #sound-toggle:active{ transform: scale(0.94); }
+
+  #tap-hint{
+    position:fixed;
+    left:0; right:0; bottom: max(28px, env(safe-area-inset-bottom));
+    text-align:center;
+    color:#6b4a3a;
+    font-size:14px;
+    letter-spacing:.5px;
+    opacity:0.85;
+    z-index:6;
+    pointer-events:none;
+    animation: pulse 1.8s ease-in-out infinite;
+  }
+  @keyframes pulse{
+    0%,100%{opacity:.45;}
+    50%{opacity:.95;}
+  }
+</style>
+</head>
+<body>
+
+<div id="app">
+
+  <!-- 1) TELA INICIAL -->
+  <div class="screen active on-top" id="screen-primeira">
+    <div class="frame">
+      <img src="primeira.jpg" alt="Clique para abrir o convite" draggable="false">
+    </div>
+  </div>
+
+  <!-- 2) VIDEO -->
+  <div class="screen" id="screen-video">
+    <div class="frame">
+      <video id="video" src="video.mp4" playsinline webkit-playsinline preload="auto"></video>
+    </div>
+  </div>
+
+  <!-- 3) TELA INTERATIVA -->
+  <div class="screen" id="screen-interativa">
+    <div class="frame">
+      <img src="interativa.jpg" alt="Convite Maitê" draggable="false">
+      <!-- botao voltar (topo esquerdo) -> volta ao video -->
+      <div class="hotspot" id="hs-int-voltar" style="left:6%; top:2.5%; width:50%; height:6.5%;"></div>
+      <!-- confirmar presenca -->
+      <div class="hotspot" id="hs-confirmar" style="left:18%; top:64%; width:23%; height:17%;"></div>
+      <!-- local da festa -->
+      <div class="hotspot" id="hs-local" style="left:39%; top:64%; width:22%; height:17%;"></div>
+      <!-- sugestoes de presente -->
+      <div class="hotspot" id="hs-presentes" style="left:59%; top:64%; width:23%; height:17%;"></div>
+    </div>
+  </div>
+
+  <!-- 4) TELA PRESENTES -->
+  <div class="screen" id="screen-presentes">
+    <div class="frame">
+      <img src="presentes.png" alt="Sugestões de presente" draggable="false">
+      <!-- botao voltar (topo esquerdo) -> volta a tela interativa -->
+      <div class="hotspot" id="hs-pres-voltar" style="left:4%; top:1.5%; width:47%; height:6%;"></div>
+    </div>
+  </div>
+
+</div>
+
+<div id="tap-hint">toque na tela</div>
+
+<button id="sound-toggle" aria-label="Ligar/desligar som">🔊</button>
+
+<audio id="bgm" src="Moana.mp3" loop preload="auto"></audio>
+
+<script>
+(function(){
+  // garante que cada .frame tenha exatamente o mesmo tamanho/proporcao da imagem
+  // (941 x 1672), para que os botoes invisiveis (%) caiam sempre em cima dos icones,
+  // em qualquer celular.
+  var RATIO = 941 / 1672; // largura / altura
+  var frames = document.querySelectorAll('.frame');
+
+  function sizeFrames(){
+    var vw = window.innerWidth;
+    var vh = window.innerHeight;
+    var w, h;
+    if (vw / vh > RATIO){
+      // viewport relativamente mais largo: encaixa pela altura
+      h = vh;
+      w = h * RATIO;
+    } else {
+      // viewport relativamente mais estreito/alto: encaixa pela largura
+      w = vw;
+      h = w / RATIO;
+    }
+    frames.forEach(function(f){
+      f.style.width = w + 'px';
+      f.style.height = h + 'px';
+    });
+  }
+
+  sizeFrames();
+  window.addEventListener('resize', sizeFrames);
+  window.addEventListener('orientationchange', function(){ setTimeout(sizeFrames, 50); });
+
+  var screens = {
+    primeira:   document.getElementById('screen-primeira'),
+    video:      document.getElementById('screen-video'),
+    interativa: document.getElementById('screen-interativa'),
+    presentes:  document.getElementById('screen-presentes')
+  };
+  var current = 'primeira';
+  var video = document.getElementById('video');
+  var bgm = document.getElementById('bgm');
+  var soundBtn = document.getElementById('sound-toggle');
+  var tapHint = document.getElementById('tap-hint');
+
+  bgm.volume = 0.22; // baixo, para nao atrapalhar a fala do video
+  var musicStarted = false;
+
+  function startMusic(){
+    if(musicStarted) return;
+    musicStarted = true;
+    bgm.play().then(function(){
+      soundBtn.textContent = '🔊';
+    }).catch(function(){
+      // autoplay bloqueado; usuario pode usar o botao de som
+      musicStarted = false;
+      soundBtn.textContent = '🔈';
+    });
+  }
+
+  soundBtn.addEventListener('click', function(e){
+    e.stopPropagation();
+    if(bgm.paused){
+      bgm.play().then(function(){
+        musicStarted = true;
+        bgm.muted = false;
+        soundBtn.textContent = '🔊';
+      }).catch(function(){});
+    } else if(bgm.muted){
+      bgm.muted = false;
+      soundBtn.textContent = '🔊';
+    } else {
+      bgm.muted = true;
+      soundBtn.textContent = '🔈';
+    }
+  });
+
+  function goTo(name){
+    if(name === current) return;
+    var from = screens[current];
+    var to = screens[name];
+
+    to.classList.add('on-top');
+    to.classList.remove('below');
+    from.classList.add('below');
+    from.classList.remove('on-top');
+
+    // forca reflow antes de trocar opacidade, garante crossfade suave
+    void to.offsetWidth;
+
+    to.classList.add('active');
+    from.classList.remove('active');
+
+    current = name;
+
+    if(name === 'video'){
+      tapHint.style.display = 'none';
+      try{
+        video.currentTime = 0;
+        var p = video.play();
+        if(p && p.catch) p.catch(function(){});
+      }catch(err){}
+    } else {
+      video.pause();
+    }
+  }
+
+  // 1) tela inicial: qualquer clique abre o video + inicia a musica
+  screens.primeira.addEventListener('click', function(){
+    startMusic();
+    goTo('video');
+  });
+
+  // fallback: se o autoplay do video falhar, um toque na tela do video tenta novamente
+  screens.video.addEventListener('click', function(){
+    startMusic();
+    if(video.paused){
+      var p = video.play();
+      if(p && p.catch) p.catch(function(){});
+    }
+  });
+
+  // ao terminar o video, troca sozinho para a tela interativa
+  video.addEventListener('ended', function(){
+    goTo('interativa');
+  });
+
+  // 3) tela interativa
+  document.getElementById('hs-int-voltar').addEventListener('click', function(e){
+    e.stopPropagation();
+    goTo('video');
+  });
+  document.getElementById('hs-confirmar').addEventListener('click', function(e){
+    e.stopPropagation();
+    window.open('https://wa.link/u5c9lb', '_blank');
+  });
+  document.getElementById('hs-local').addEventListener('click', function(e){
+    e.stopPropagation();
+    window.open('https://share.google/TiI537OPnZhnB1Kgd', '_blank');
+  });
+  document.getElementById('hs-presentes').addEventListener('click', function(e){
+    e.stopPropagation();
+    goTo('presentes');
+  });
+
+  // 4) tela presentes
+  document.getElementById('hs-pres-voltar').addEventListener('click', function(e){
+    e.stopPropagation();
+    goTo('interativa');
+  });
+
+  // garante que a musica nunca pare sozinha (retoma se o navegador pausar por algum motivo)
+  bgm.addEventListener('pause', function(){
+    if(musicStarted && current !== 'primeira'){
+      setTimeout(function(){
+        if(bgm.paused){ bgm.play().catch(function(){}); }
+      }, 300);
+    }
+  });
+
+})();
+</script>
+
+</body>
+</html>
